@@ -109,6 +109,33 @@
         <div id="googleStatus" class="status-message"></div>
       </section>
 
+      <!-- プロンプトテンプレート設定 -->
+      <section class="settings-section">
+        <h2>プロンプトテンプレート</h2>
+        <p class="description">
+          AIアシスタントの応答スタイルをカスタマイズできます
+        </p>
+
+        <div class="form-group">
+          <label for="promptTemplate">テンプレート</label>
+          <select id="promptTemplate">
+            <!-- JavaScriptで動的に追加 -->
+          </select>
+        </div>
+
+        <div id="templateDetails" class="template-details" style="display: none;">
+          <p id="templateDescription"></p>
+        </div>
+
+        <div class="button-group">
+          <button id="importTemplateBtn" class="secondary-btn">インポート</button>
+          <button id="exportTemplateBtn" class="secondary-btn">エクスポート</button>
+        </div>
+
+        <input type="file" id="templateFileInput" accept=".json" style="display: none;" />
+        <div id="templateStatus" class="status-message"></div>
+      </section>
+
       <!-- 動作設定 -->
       <section class="settings-section">
         <h2>動作設定</h2>
@@ -144,6 +171,7 @@
     </div>
   </div>
 
+  <script src="scripts/prompt-templates.js"></script>
   <script src="scripts/calendar-api.js"></script>
   <script src="scripts/settings.js"></script>
 </body>

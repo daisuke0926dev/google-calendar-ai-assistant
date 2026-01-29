@@ -16,6 +16,13 @@ const toggleGoogleSecretBtn = document.getElementById('toggleGoogleSecret');
 const googleAuthBtn = document.getElementById('googleAuthBtn');
 const authBtnText = document.getElementById('authBtnText');
 const googleStatus = document.getElementById('googleStatus');
+const promptTemplateSelect = document.getElementById('promptTemplate');
+const templateDetails = document.getElementById('templateDetails');
+const templateDescription = document.getElementById('templateDescription');
+const importTemplateBtn = document.getElementById('importTemplateBtn');
+const exportTemplateBtn = document.getElementById('exportTemplateBtn');
+const templateFileInput = document.getElementById('templateFileInput');
+const templateStatus = document.getElementById('templateStatus');
 const autoConfirmCheckbox = document.getElementById('autoConfirm');
 const businessHoursStartInput = document.getElementById('businessHoursStart');
 const businessHoursEndInput = document.getElementById('businessHoursEnd');
@@ -29,9 +36,55 @@ async function initialize() {
   const extensionId = chrome.runtime.id;
   redirectUri.textContent = `https://${extensionId}.chromiumapp.org/`;
 
+  // プロンプトテンプレート管理を初期化
+  await promptTemplateManager.loadSettings();
+  await loadTemplates();
+
   await loadSettings();
   setupEventListeners();
   await checkGoogleAuthStatus();
+}
+
+/**
+ * テンプレート一覧を読み込み
+ */
+async function loadTemplates() {
+  try {
+    const templates = promptTemplateManager.getAllTemplates();
+    const currentTemplateId = promptTemplateManager.currentTemplate || 'standard';
+
+    // セレクトボックスをクリア
+    promptTemplateSelect.innerHTML = '';
+
+    // テンプレートを追加
+    templates.forEach(template => {
+      const option = document.createElement('option');
+      option.value = template.id;
+      option.textContent = `${template.name}${template.isPreset ? '' : ' (カスタム)'}`;
+      if (template.id === currentTemplateId) {
+        option.selected = true;
+      }
+      promptTemplateSelect.appendChild(option);
+    });
+
+    // 詳細を更新
+    updateTemplateDetails(currentTemplateId);
+  } catch (error) {
+    console.error('テンプレート読み込みエラー:', error);
+  }
+}
+
+/**
+ * テンプレート詳細を更新
+ */
+function updateTemplateDetails(templateId) {
+  const template = promptTemplateManager.getTemplate(templateId);
+  if (template) {
+    templateDescription.textContent = template.description || '';
+    templateDetails.style.display = 'block';
+  } else {
+    templateDetails.style.display = 'none';
+  }
 }
 
 /**
@@ -44,6 +97,7 @@ async function loadSettings() {
       'openaiModel',
       'googleClientId',
       'googleClientSecret',
+      'promptTemplate',
       'autoConfirm',
       'businessHoursStart',
       'businessHoursEnd'
@@ -63,6 +117,11 @@ async function loadSettings() {
 
     if (data.googleClientSecret) {
       googleClientSecretInput.value = data.googleClientSecret;
+    }
+
+    if (data.promptTemplate) {
+      promptTemplateSelect.value = data.promptTemplate;
+      updateTemplateDetails(data.promptTemplate);
     }
 
     autoConfirmCheckbox.checked = data.autoConfirm || false;
@@ -138,8 +197,25 @@ function setupEventListeners() {
   // リセットボタン
   resetBtn.addEventListener('click', handleReset);
 
+  // テンプレート選択
+  promptTemplateSelect.addEventListener('change', () => {
+    const templateId = promptTemplateSelect.value;
+    updateTemplateDetails(templateId);
+    hideStatus(templateStatus);
+  });
+
+  // テンプレートインポート
+  importTemplateBtn.addEventListener('click', () => {
+    templateFileInput.click();
+  });
+
+  templateFileInput.addEventListener('change', handleTemplateImport);
+
+  // テンプレートエクスポート
+  exportTemplateBtn.addEventListener('click', handleTemplateExport);
+
   // 入力変更時にステータスをクリア
-  [openaiKeyInput, openaiModelSelect, googleClientIdInput, googleClientSecretInput, autoConfirmCheckbox, businessHoursStartInput, businessHoursEndInput].forEach(element => {
+  [openaiKeyInput, openaiModelSelect, googleClientIdInput, googleClientSecretInput, promptTemplateSelect, autoConfirmCheckbox, businessHoursStartInput, businessHoursEndInput].forEach(element => {
     element.addEventListener('change', () => {
       hideStatus(saveStatus);
     });
@@ -213,6 +289,60 @@ function updateGoogleStatus(isAuthenticated) {
 }
 
 /**
+ * テンプレートをインポート
+ */
+async function handleTemplateImport(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  try {
+    const text = await file.text();
+    const templateId = await promptTemplateManager.importTemplate(text);
+
+    // テンプレート一覧を再読み込み
+    await loadTemplates();
+
+    // インポートしたテンプレートを選択
+    promptTemplateSelect.value = templateId;
+    updateTemplateDetails(templateId);
+
+    showStatus(templateStatus, 'テンプレートをインポートしました', 'success');
+  } catch (error) {
+    console.error('インポートエラー:', error);
+    showStatus(templateStatus, `インポートに失敗しました: ${error.message}`, 'error');
+  } finally {
+    // ファイル入力をリセット
+    templateFileInput.value = '';
+  }
+}
+
+/**
+ * テンプレートをエクスポート
+ */
+function handleTemplateExport() {
+  try {
+    const templateId = promptTemplateSelect.value;
+    const jsonString = promptTemplateManager.exportTemplate(templateId);
+
+    // ダウンロード
+    const blob = new Blob([jsonString], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `prompt-template-${templateId}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showStatus(templateStatus, 'テンプレートをエクスポートしました', 'success');
+  } catch (error) {
+    console.error('エクスポートエラー:', error);
+    showStatus(templateStatus, `エクスポートに失敗しました: ${error.message}`, 'error');
+  }
+}
+
+/**
  * 設定を保存
  */
 async function handleSave() {
@@ -236,12 +366,17 @@ async function handleSave() {
       return;
     }
 
+    // 選択されたテンプレートを設定
+    const selectedTemplate = promptTemplateSelect.value;
+    await promptTemplateManager.setTemplate(selectedTemplate);
+
     // 設定を保存
     await chrome.storage.local.set({
       openaiKey: openaiKey,
       openaiModel: openaiModelSelect.value,
       googleClientId: googleClientIdInput.value.trim(),
       googleClientSecret: googleClientSecretInput.value.trim(),
+      promptTemplate: selectedTemplate,
       autoConfirm: autoConfirmCheckbox.checked,
       businessHoursStart: startTime,
       businessHoursEnd: endTime

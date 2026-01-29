@@ -30,6 +30,11 @@ class OpenAIAPI {
     const data = await chrome.storage.local.get(['openaiKey', 'openaiModel']);
     this.apiKey = data.openaiKey || null;
     this.model = data.openaiModel || 'gpt-4o';
+
+    // プロンプトテンプレートを読み込み
+    if (typeof promptTemplateManager !== 'undefined') {
+      await promptTemplateManager.loadSettings();
+    }
   }
 
   /**
@@ -43,7 +48,14 @@ class OpenAIAPI {
       throw new Error('OpenAI APIキーが設定されていません');
     }
 
-    const systemPrompt = `あなたはGoogleカレンダーのスケジュール管理アシスタントです。
+    // プロンプトテンプレートから取得
+    let systemPrompt;
+    if (typeof promptTemplateManager !== 'undefined') {
+      const template = promptTemplateManager.getCurrentTemplate();
+      systemPrompt = promptTemplateManager.replaceVariables(template.intentParsePrompt);
+    } else {
+      // フォールバック: デフォルトプロンプト
+      systemPrompt = `あなたはGoogleカレンダーのスケジュール管理アシスタントです。
 ユーザーの自然言語でのリクエストを解析し、スケジュール操作の意図を抽出してください。
 
 重要な指示：
@@ -82,69 +94,8 @@ class OpenAIAPI {
 - アシスタント自身に関する質問（「あなたは誰？」「何ができるの？」など）
 - 具体的なカレンダー操作を求めていない質問
 
-以下のJSON形式で回答してください：
-
-{
-  "action": "move" | "create" | "delete" | "query" | "update" | "respond" | "bulk_respond" | "add_attendees" | "remove_attendees" | "set_reminder" | "create_recurring" | "confirm" | "other",
-  "eventQuery": "対象イベントの検索クエリ（会話から推測）",
-  "date": "YYYY-MM-DD形式の日付（対象イベントが存在する日付。move/delete/update/queryの場合は必須）",
-  "dateRange": {  // 日付範囲（bulk_respondの場合）
-    "start": "YYYY-MM-DD",
-    "end": "YYYY-MM-DD"
-  },
-  "filterCondition": "未回答のみ" | "仮承諾のみ" | "全て",  // フィルター条件（bulk_respondの場合）
-  "newDate": "YYYY-MM-DD形式の新しい日付（moveの場合）",
-  "newTime": "HH:MM形式の新しい時刻（オプション）",
-  "duration": 60,  // 分単位
-  "title": "イベントのタイトル（update/createの場合）",
-  "description": "イベントの説明（update/createの場合）",
-  "location": "場所（update/createの場合）",
-  "attendees": ["email1@example.com", "email2@example.com"],  // 参加者（add_attendees/createの場合）
-  "responseStatus": "accepted" | "declined" | "tentative",  // 参加ステータス（respond/bulk_respondの場合）
-  "reminderMinutes": 30,  // リマインダーの時間（分）
-  "recurrence": {  // 繰り返しルール（create_recurringの場合）
-    "frequency": "daily" | "weekly" | "monthly" | "yearly",
-    "interval": 1,  // 間隔
-    "count": 10,  // 繰り返し回数（オプション）
-    "until": "YYYY-MM-DD",  // 終了日（オプション）
-    "byDay": ["MO", "WE", "FR"]  // 曜日指定（weeklyの場合、オプション）
-  },
-  "needsSuggestion": true,  // 時間提案が必要か
-  "includeHolidays": false,  // 休日・祝日も含めるか（デフォルト: false）
-  "userResponse": "肯定的" | "否定的" | null,  // 提案への応答
-  "confidence": 0.0-1.0  // 解析の確信度
-}
-
-【重要】includeHolidaysについて：
-- ユーザーが「休日でも良い」「土日でも大丈夫」「祝日でも構わない」など明示した場合のみtrue
-- 特に指定がない場合はfalse（平日のみ提案）
-
-【使用例】
-1. 「来月の予定で参加にしていないやつ全部不参加にして」
-→ action: "bulk_respond", dateRange: {start: "2026-03-01", end: "2026-03-31"}, filterCondition: "未回答のみ", responseStatus: "declined"
-
-2. 「来月の23日にある1on1の予定、別の日にずらしたいんだけどどこが良い？」
-→ action: "move", eventQuery: "1on1", date: "2026-02-23", newDate: null, needsSuggestion: true
-
-3. 「2月8日のISR定例を2月4日に移動させて」
-→ action: "move", eventQuery: "ISR定例", date: "2026-02-08", newDate: "2026-02-04", needsSuggestion: true
-
-4. 「今日の予定を教えて」「今日の予定は？」
-→ action: "query", eventQuery: null, date: "2026-01-29" (今日の日付)
-
-5. 「明日の会議は何時から？」
-→ action: "query", eventQuery: "会議", date: "2026-01-30" (明日の日付)
-
-6. 「こんにちは」「ありがとう」「調子はどう？」
-→ action: "other"
-
-7. 「私はさっきなんて言った？」「前に何を話した？」
-→ action: "other"
-
-8. 「あなたは誰？」「何ができるの？」
-→ action: "other"
-
 今日の日付: ${new Date().toISOString().split('T')[0]}`;
+    }
 
     const userContext = recentEvents.length > 0
       ? `\n\n最近のイベント:\n${recentEvents.map(e => `- ${e.summary} (${e.start.dateTime || e.start.date})`).join('\n')}`
@@ -199,7 +150,14 @@ class OpenAIAPI {
       throw new Error('OpenAI APIキーが設定されていません');
     }
 
-    const systemPrompt = `あなたはスケジュール提案のエキスパートです。
+    // プロンプトテンプレートから取得
+    let systemPrompt;
+    if (typeof promptTemplateManager !== 'undefined') {
+      const template = promptTemplateManager.getCurrentTemplate();
+      systemPrompt = promptTemplateManager.replaceVariables(template.suggestionPrompt);
+    } else {
+      // フォールバック: デフォルトプロンプト
+      systemPrompt = `あなたはスケジュール提案のエキスパートです。
 ユーザーの要求と空き時間を考慮して、最適なスケジュールを提案してください。
 
 【最重要】ユーザーが日付を明示的に指定している場合：
@@ -207,7 +165,10 @@ class OpenAIAPI {
 - 他の日付を提案に含めないでください
 - その日に空きがない場合は、その旨を伝えてください
 
-指定がない場合は、早い日付から順に提案してください。
+指定がない場合は、早い日付から順に提案してください。`;
+    }
+
+    systemPrompt += `
 
 回答は以下のJSON形式で提供してください：
 
@@ -278,9 +239,17 @@ ${intent.newDate ? `\n【重要】${intent.newDate}の時間帯のみを選択�
       throw new Error('OpenAI APIキーが設定されていません');
     }
 
-    const systemPrompt = `あなたは親しみやすいGoogleカレンダーアシスタントです。
+    // プロンプトテンプレートから取得
+    let systemPrompt;
+    if (typeof promptTemplateManager !== 'undefined') {
+      const template = promptTemplateManager.getCurrentTemplate();
+      systemPrompt = promptTemplateManager.replaceVariables(template.conversationPrompt);
+    } else {
+      // フォールバック: デフォルトプロンプト
+      systemPrompt = `あなたは親しみやすいGoogleカレンダーアシスタントです。
 ユーザーのスケジュール管理をサポートしてください。
 簡潔で自然な日本語で応答してください。`;
+    }
 
     const messages = [
       { role: 'system', content: systemPrompt },
