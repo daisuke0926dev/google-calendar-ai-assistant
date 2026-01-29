@@ -1,0 +1,50 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Chrome Extension (パッケージファイル)
+*.crx
+*.pem
+*.zip
+
+# Node modules (将来的に使用する可能性)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+
+# 環境変数ファイル（もし使う場合）
+.env
+.env.local
+.env.*.local
+
+# 一時ファイル
+tmp/
+temp/
+*.tmp
+
+# テスト関連
+coverage/
+.nyc_output/
+
+# バックアップファイル
+*.bak
+*.backup

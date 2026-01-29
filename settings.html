@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設定 - Calendar AI Assistant</title>
+  <link rel="stylesheet" href="styles/settings.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <button id="backBtn" class="back-btn">← 戻る</button>
+      <h1>設定</h1>
+    </header>
+
+    <div class="content">
+      <!-- OpenAI API設定 -->
+      <section class="settings-section">
+        <h2>OpenAI API</h2>
+        <p class="description">
+          自然言語処理にOpenAI APIを使用します。
+          <a href="https://platform.openai.com/api-keys" target="_blank">APIキーを取得</a>
+        </p>
+
+        <div class="form-group">
+          <label for="openaiKey">APIキー</label>
+          <input
+            type="password"
+            id="openaiKey"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+          <button id="toggleOpenaiKey" class="toggle-visibility">👁️</button>
+        </div>
+
+        <div class="form-group">
+          <label for="openaiModel">モデル</label>
+          <select id="openaiModel">
+            <option value="gpt-4o">GPT-4o (最新・推奨)</option>
+            <option value="gpt-4o-mini">GPT-4o mini (高速・低コスト)</option>
+            <option value="gpt-4-turbo">GPT-4 Turbo</option>
+            <option value="gpt-4">GPT-4</option>
+            <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
+          </select>
+        </div>
+
+        <div id="openaiStatus" class="status-message"></div>
+      </section>
+
+      <!-- Google Calendar API設定 -->
+      <section class="settings-section">
+        <h2>Google Calendar API</h2>
+        <p class="description">
+          Google Cloud Consoleで取得したOAuth 2.0認証情報を入力してください。
+          <a href="#" id="showSetupGuide">セットアップ手順を表示</a>
+        </p>
+
+        <div id="setupGuide" class="setup-guide" style="display: none;">
+          <h3>Google Cloud Consoleでの設定手順</h3>
+          <ol>
+            <li><a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a>にアクセス</li>
+            <li>新規プロジェクトを作成（または既存のプロジェクトを選択）</li>
+            <li>「APIとサービス」→「ライブラリ」から「Google Calendar API」を有効化</li>
+            <li>「APIとサービス」→「OAuth同意画面」を設定
+              <ul>
+                <li>User Type: 外部</li>
+                <li>アプリ名、サポートメール、デベロッパー連絡先を入力</li>
+                <li>テストユーザーに自分のメールアドレスを追加</li>
+              </ul>
+            </li>
+            <li>「APIとサービス」→「認証情報」→「認証情報を作成」→「OAuth クライアント ID」
+              <ul>
+                <li>アプリケーションの種類: <strong>ウェブ アプリケーション</strong></li>
+                <li>承認済みのリダイレクトURIに以下を追加:<br>
+                    <code id="redirectUri">https://[拡張機能ID].chromiumapp.org/</code>
+                    <button id="copyRedirectUri" class="copy-btn">コピー</button>
+                </li>
+              </ul>
+            </li>
+            <li>作成後、クライアントIDとクライアントシークレットをコピーして下記に入力</li>
+          </ol>
+        </div>
+
+        <div class="form-group">
+          <label for="googleClientId">Google Client ID</label>
+          <input
+            type="text"
+            id="googleClientId"
+            placeholder="123456789012-abcdefghijklmnopqrstuvwxyz.apps.googleusercontent.com"
+            autocomplete="off"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="googleClientSecret">Google Client Secret</label>
+          <input
+            type="password"
+            id="googleClientSecret"
+            placeholder="GOCSPX-..."
+            autocomplete="off"
+          />
+          <button id="toggleGoogleSecret" class="toggle-visibility">👁️</button>
+        </div>
+
+        <button id="googleAuthBtn" class="auth-btn">
+          <span id="authBtnText">Googleアカウントで認証</span>
+        </button>
+
+        <div id="googleStatus" class="status-message"></div>
+      </section>
+
+      <!-- 動作設定 -->
+      <section class="settings-section">
+        <h2>動作設定</h2>
+
+        <div class="form-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoConfirm" />
+            <span>予定変更時に自動確認をスキップ</span>
+          </label>
+          <p class="help-text">有効にすると、確認なしで即座に予定を変更します</p>
+        </div>
+
+        <div class="form-group">
+          <label for="businessHoursStart">営業時間（開始）</label>
+          <input type="time" id="businessHoursStart" value="09:00" />
+        </div>
+
+        <div class="form-group">
+          <label for="businessHoursEnd">営業時間（終了）</label>
+          <input type="time" id="businessHoursEnd" value="18:00" />
+        </div>
+
+        <p class="help-text">スケジュール提案時に優先する時間帯</p>
+      </section>
+
+      <!-- 保存ボタン -->
+      <div class="button-group">
+        <button id="saveBtn" class="save-btn">保存</button>
+        <button id="resetBtn" class="reset-btn">リセット</button>
+      </div>
+
+      <div id="saveStatus" class="status-message"></div>
+    </div>
+  </div>
+
+  <script src="scripts/calendar-api.js"></script>
+  <script src="scripts/settings.js"></script>
+</body>
+</html>

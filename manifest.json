@@ -1,0 +1,43 @@
+{
+  "manifest_version": 3,
+  "name": "Google Calendar AI Assistant",
+  "version": "1.0.0",
+  "description": "AIで自然言語によるGoogleカレンダーのスケジュール管理を実現",
+  "permissions": [
+    "storage",
+    "identity",
+    "sidePanel",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://api.openai.com/*",
+    "https://accounts.google.com/*"
+  ],
+  "background": {
+    "service_worker": "scripts/background.js"
+  },
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "action": {
+    "default_title": "Google Calendar AI Assistant",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+C",
+        "mac": "Command+Shift+C"
+      },
+      "description": "Calendar AIチャットを開く"
+    },
+    "open-sidebar": {
+      "suggested_key": {
+        "default": "Ctrl+Shift+K",
+        "mac": "Command+Shift+K"
+      },
+      "description": "サイドバーを開く"
+    }
+  }
+}

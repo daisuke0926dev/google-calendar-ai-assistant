@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calendar AI Assistant</title>
+  <link rel="stylesheet" href="styles/sidepanel.css">
+</head>
+<body>
+  <div class="container">
+    <!-- ヘッダー -->
+    <header class="header">
+      <h1>📅 Calendar AI</h1>
+      <div class="header-buttons">
+        <button id="clearHistoryBtn" class="icon-btn" title="会話履歴をクリア">🗑️</button>
+        <button id="settingsBtn" class="icon-btn" title="設定">⚙️</button>
+      </div>
+    </header>
+
+    <!-- ステータス表示 -->
+    <div id="statusBar" class="status-bar">
+      <span id="statusText">準備中...</span>
+    </div>
+
+    <!-- チャットメッセージ表示エリア -->
+    <div id="chatContainer" class="chat-container">
+      <div class="welcome-message">
+        <p>こんにちは！</p>
+        <p>自然な言葉でスケジュール管理をお手伝いします。</p>
+        <p>例: 「2月3日の会議、翌日に移動させといて」</p>
+      </div>
+    </div>
+
+    <!-- 入力エリア -->
+    <div class="input-container">
+      <textarea
+        id="messageInput"
+        class="message-input"
+        placeholder="メッセージを入力..."
+        rows="1"
+      ></textarea>
+      <button id="sendBtn" class="send-btn" disabled>送信</button>
+    </div>
+  </div>
+
+  <!-- スクリプト -->
+  <script src="scripts/holidays.js"></script>
+  <script src="scripts/calendar-api.js"></script>
+  <script src="scripts/openai-api.js"></script>
+  <script src="scripts/scheduler.js"></script>
+  <script src="scripts/sidepanel.js"></script>
+</body>
+</html>
