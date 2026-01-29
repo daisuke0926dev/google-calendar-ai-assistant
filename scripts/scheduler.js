@@ -5,6 +5,7 @@ class Scheduler {
     this.calendar = calendarAPI;
     this.ai = openaiAPI;
     this.currentContext = null; // 現在の処理コンテキスト
+    this.lastOperation = null; // 最後の操作（Undo用）
   }
 
   /**
@@ -422,6 +423,11 @@ class Scheduler {
       if (this.currentContext.type === 'move') {
         // イベントを移動
         const event = this.currentContext.event;
+
+        // Undo用に元の情報を保存
+        const originalStart = event.start;
+        const originalEnd = event.end;
+
         const newDateTime = this.combineDateAndTime(suggestion.date, suggestion.time);
         const endDateTime = new Date(newDateTime);
         endDateTime.setMinutes(endDateTime.getMinutes() + this.calculateEventDuration(event));
@@ -437,6 +443,23 @@ class Scheduler {
           }
         });
 
+        // Undo履歴を保存
+        this.lastOperation = {
+          type: 'move',
+          eventId: event.id,
+          eventSummary: event.summary,
+          originalStart: originalStart,
+          originalEnd: originalEnd,
+          newStart: {
+            dateTime: newDateTime.toISOString(),
+            timeZone: 'Asia/Tokyo'
+          },
+          newEnd: {
+            dateTime: endDateTime.toISOString(),
+            timeZone: 'Asia/Tokyo'
+          }
+        };
+
         this.currentContext = null;
 
         return {
@@ -445,12 +468,13 @@ class Scheduler {
         };
       } else if (this.currentContext.type === 'create') {
         // イベントを作成
+        const title = this.currentContext.title;
         const newDateTime = this.combineDateAndTime(suggestion.date, suggestion.time);
         const endDateTime = new Date(newDateTime);
         endDateTime.setMinutes(endDateTime.getMinutes() + this.currentContext.duration);
 
-        await this.calendar.createEvent({
-          summary: this.currentContext.title,
+        const createdEvent = await this.calendar.createEvent({
+          summary: title,
           start: {
             dateTime: newDateTime.toISOString(),
             timeZone: 'Asia/Tokyo'
@@ -461,11 +485,18 @@ class Scheduler {
           }
         });
 
+        // Undo履歴を保存
+        this.lastOperation = {
+          type: 'create',
+          eventId: createdEvent.id,
+          eventSummary: title
+        };
+
         this.currentContext = null;
 
         return {
           type: 'success',
-          message: `「${this.currentContext.title}」を${suggestion.date} ${suggestion.time}に作成しました！`
+          message: `「${title}」を${suggestion.date} ${suggestion.time}に作成しました！`
         };
       }
     }
@@ -741,6 +772,13 @@ class Scheduler {
     }
 
     const event = events[0];
+
+    // Undo用に削除前のイベント情報を保存
+    this.lastOperation = {
+      type: 'delete',
+      event: JSON.parse(JSON.stringify(event)) // ディープコピー
+    };
+
     await this.calendar.deleteEvent(event.id);
 
     return {
@@ -1150,6 +1188,83 @@ class Scheduler {
       type: 'success',
       message: `「${createdEvent.summary}」を${freqMap[intent.recurrence.frequency]}で作成しました。`
     };
+  }
+
+  /**
+   * 直前の操作を取り消す
+   */
+  async undo() {
+    if (!this.lastOperation) {
+      return {
+        type: 'message',
+        message: '取り消せる操作がありません。'
+      };
+    }
+
+    try {
+      const operation = this.lastOperation;
+
+      switch (operation.type) {
+        case 'create':
+          // 作成したイベントを削除
+          await this.calendar.deleteEvent(operation.eventId);
+          this.lastOperation = null;
+          return {
+            type: 'success',
+            message: `「${operation.eventSummary}」の作成を取り消しました。`,
+            undone: true
+          };
+
+        case 'move':
+          // イベントを元の位置に戻す
+          await this.calendar.updateEvent(operation.eventId, {
+            start: operation.originalStart,
+            end: operation.originalEnd
+          });
+          this.lastOperation = null;
+          return {
+            type: 'success',
+            message: `「${operation.eventSummary}」の移動を取り消しました。`,
+            undone: true
+          };
+
+        case 'delete':
+          // 削除したイベントを復元
+          const restoredEvent = await this.calendar.createEvent({
+            summary: operation.event.summary,
+            start: operation.event.start,
+            end: operation.event.end,
+            description: operation.event.description,
+            location: operation.event.location,
+            attendees: operation.event.attendees
+          });
+          this.lastOperation = null;
+          return {
+            type: 'success',
+            message: `「${operation.event.summary}」の削除を取り消しました。`,
+            undone: true
+          };
+
+        default:
+          return {
+            type: 'error',
+            message: '不明な操作タイプです。'
+          };
+      }
+    } catch (error) {
+      console.error('Undo処理エラー:', error);
+      return {
+        type: 'error',
+        message: `取り消し処理でエラーが発生しました: ${error.message}`
+      };
+    }
+  }
+
+  /**
+   * Undo可能かどうかを確認
+   */
+  canUndo() {
+    return this.lastOperation !== null;
   }
 }
 

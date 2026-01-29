@@ -4,6 +4,8 @@
 const chatContainer = document.getElementById('chatContainer');
 const messageInput = document.getElementById('messageInput');
 const sendBtn = document.getElementById('sendBtn');
+const undoBtn = document.getElementById('undoBtn');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
 const settingsBtn = document.getElementById('settingsBtn');
 const statusBar = document.getElementById('statusBar');
 const statusText = document.getElementById('statusText');
@@ -24,6 +26,9 @@ async function initialize() {
 
   // イベントリスナーを設定
   setupEventListeners();
+
+  // Undoボタンの初期状態を設定
+  updateUndoButton();
 }
 
 /**
@@ -135,11 +140,11 @@ function setupEventListeners() {
   });
 
   // 会話履歴クリアボタン
-  const clearHistoryBtn = document.getElementById('clearHistoryBtn');
   clearHistoryBtn.addEventListener('click', async () => {
     if (confirm('会話履歴をすべてクリアしますか？')) {
       conversationHistory = [];
       scheduler.currentContext = null; // コンテキストもクリア
+      scheduler.lastOperation = null; // Undo履歴もクリア
       // 保存しない（元々保存していないため）
       // await saveConversationHistory();
 
@@ -169,7 +174,67 @@ function setupEventListeners() {
       `;
       chatContainer.appendChild(welcomeDiv);
 
+      // Undoボタンの状態を更新
+      updateUndoButton();
+
       console.log('会話履歴とコンテキストをクリアしました');
+    }
+  });
+
+  // Undoボタン
+  undoBtn.addEventListener('click', async () => {
+    if (!scheduler.canUndo()) {
+      return;
+    }
+
+    try {
+      undoBtn.disabled = true;
+      updateStatus('操作を取り消しています...', 'processing');
+
+      const result = await scheduler.undo();
+
+      if (result.undone) {
+        // 成功メッセージを表示
+        addMessage('assistant', result.message);
+
+        // 会話履歴から直前のユーザーメッセージとアシスタント応答を削除
+        if (conversationHistory.length >= 2) {
+          conversationHistory.pop(); // アシスタントメッセージ
+          conversationHistory.pop(); // ユーザーメッセージ
+        }
+
+        // チャットUIから直前のメッセージを削除
+        const messages = chatContainer.querySelectorAll('.message');
+        if (messages.length >= 2) {
+          messages[messages.length - 1].remove(); // アシスタントメッセージ
+          messages[messages.length - 2].remove(); // ユーザーメッセージ
+        }
+
+        // 提案ボタンもクリア
+        const suggestions = chatContainer.querySelectorAll('.suggestion-buttons');
+        if (suggestions.length > 0) {
+          suggestions[suggestions.length - 1].remove();
+        }
+
+        // イベント情報もクリア
+        const eventInfos = chatContainer.querySelectorAll('.event-info');
+        if (eventInfos.length > 0) {
+          eventInfos[eventInfos.length - 1].remove();
+        }
+
+        updateStatus('準備完了', 'connected');
+      } else {
+        addMessage('assistant', result.message);
+        updateStatus('準備完了', 'connected');
+      }
+
+      // Undoボタンの状態を更新
+      updateUndoButton();
+    } catch (error) {
+      console.error('Undo処理エラー:', error);
+      addMessage('assistant', `エラーが発生しました: ${error.message}`);
+      updateStatus('エラー', 'error');
+      updateUndoButton();
     }
   });
 }
@@ -236,6 +301,9 @@ async function handleSendMessage() {
 
     // 会話履歴は保存しない（ページを閉じたらリセット）
     // await saveConversationHistory();
+
+    // Undoボタンの状態を更新
+    updateUndoButton();
   } catch (error) {
     console.error('メッセージ処理エラー:', error);
     removeLoadingIndicator(loadingId);
@@ -410,6 +478,19 @@ function updateStatus(text, type = 'normal') {
     statusBar.classList.add('connected');
   } else if (type === 'error') {
     statusBar.classList.add('error');
+  }
+}
+
+/**
+ * Undoボタンの状態を更新
+ */
+function updateUndoButton() {
+  if (scheduler.canUndo()) {
+    undoBtn.disabled = false;
+    undoBtn.style.opacity = '1';
+  } else {
+    undoBtn.disabled = true;
+    undoBtn.style.opacity = '0.5';
   }
 }
 
