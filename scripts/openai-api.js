@@ -53,6 +53,11 @@ class OpenAIAPI {
     if (typeof promptTemplateManager !== 'undefined') {
       const template = promptTemplateManager.getCurrentTemplate();
       systemPrompt = promptTemplateManager.replaceVariables(template.intentParsePrompt);
+
+      // OpenAI APIの要件: response_formatでjson_objectを使う場合、プロンプトに"json"を含める必要がある
+      if (!systemPrompt.toLowerCase().includes('json')) {
+        systemPrompt += '\n\n以下のJSON形式で回答してください：\n\n{\n  "action": "move" | "create" | "delete" | "query" | "update" | "respond" | "bulk_respond" | "add_attendees" | "remove_attendees" | "set_reminder" | "create_recurring" | "confirm" | "other",\n  "eventQuery": "対象イベントの検索クエリ",\n  "date": "YYYY-MM-DD形式の日付",\n  "newDate": "YYYY-MM-DD形式の新しい日付",\n  "needsSuggestion": true,\n  "confidence": 0.0-1.0\n}';
+      }
     } else {
       // フォールバック: デフォルトプロンプト
       systemPrompt = `あなたはGoogleカレンダーのスケジュール管理アシスタントです。
