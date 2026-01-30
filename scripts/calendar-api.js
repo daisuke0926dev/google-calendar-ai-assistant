@@ -61,14 +61,34 @@ class CalendarAPI {
       authUrl.searchParams.append('prompt', 'consent');
 
       // OAuth認証フローを開始
-      const responseUrl = await chrome.identity.launchWebAuthFlow({
-        url: authUrl.toString(),
-        interactive: true
-      });
+      let responseUrl;
+      try {
+        responseUrl = await chrome.identity.launchWebAuthFlow({
+          url: authUrl.toString(),
+          interactive: true
+        });
+      } catch (authError) {
+        console.error('認証フロー中のエラー:', authError);
+
+        // ユーザーがキャンセルした場合
+        if (authError.message && authError.message.includes('did not approve')) {
+          return {
+            success: false,
+            error: '認証がキャンセルされました。Google Cloud Consoleの設定を確認してください：\n1. OAuth同意画面でテストユーザーに自分のメールアドレスが追加されているか\n2. リダイレクトURIが正しく設定されているか（' + redirectUri + '）'
+          };
+        }
+
+        return { success: false, error: authError.message };
+      }
 
       // レスポンスURLから認証コードを取得
       const url = new URL(responseUrl);
       const code = url.searchParams.get('code');
+      const error = url.searchParams.get('error');
+
+      if (error) {
+        return { success: false, error: `認証エラー: ${error}` };
+      }
 
       if (!code) {
         return { success: false, error: '認証コードの取得に失敗しました' };

@@ -107,6 +107,33 @@
         </button>
 
         <div id="googleStatus" class="status-message"></div>
+
+        <div class="troubleshooting-box">
+          <h3>❌ 「認証がキャンセルされました」エラーの解決方法</h3>
+          <ol>
+            <li><strong>テストユーザーの追加</strong>
+              <ul>
+                <li>Google Cloud Console → OAuth同意画面</li>
+                <li>「テストユーザー」セクションで「ADD USERS」をクリック</li>
+                <li>自分のGmailアドレスを追加</li>
+              </ul>
+            </li>
+            <li><strong>リダイレクトURIの確認</strong>
+              <ul>
+                <li>上記の「セットアップ手順を表示」でリダイレクトURIをコピー</li>
+                <li>Google Cloud Console → 認証情報 → OAuth 2.0 クライアントID</li>
+                <li>「承認済みのリダイレクトURI」に追加されているか確認</li>
+              </ul>
+            </li>
+            <li><strong>「このアプリは確認されていません」が表示される場合</strong>
+              <ul>
+                <li>「詳細」をクリック</li>
+                <li>「[アプリ名]に移動（安全ではないページ）」をクリック</li>
+                <li>カレンダーへのアクセスを「許可」</li>
+              </ul>
+            </li>
+          </ol>
+        </div>
       </section>
 
       <!-- プロンプトテンプレート設定 -->
